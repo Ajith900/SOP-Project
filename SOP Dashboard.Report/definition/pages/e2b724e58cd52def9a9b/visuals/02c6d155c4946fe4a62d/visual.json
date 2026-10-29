@@ -212,6 +212,25 @@
               },
               "queryRef": "Schedule & Commit.Short Receipt",
               "nativeQueryRef": "Short Receipt"
+            },
+            {
+              "field": {
+                "Aggregation": {
+                  "Expression": {
+                    "Column": {
+                      "Expression": {
+                        "SourceRef": {
+                          "Entity": "Po Price"
+                        }
+                      },
+                      "Property": "Net Price "
+                    }
+                  },
+                  "Function": 0
+                }
+              },
+              "queryRef": "Sum(Po Price.Net Price )",
+              "nativeQueryRef": "Sum of Net Price "
             }
           ]
         }
