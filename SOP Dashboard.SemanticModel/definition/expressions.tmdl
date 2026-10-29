@@ -1,0 +1,110 @@
+expression 'Sheet1 (3)' =
+		(SourceFile as binary) =>
+		let
+		    Source = Excel.Workbook(SourceFile, null, true),
+		    Sheet = Source{0}[Data],
+		
+		    #"Removed Top Rows" = Table.Skip(Sheet, 2),
+		
+		    #"Promoted Headers" = Table.PromoteHeaders(#"Removed Top Rows", [PromoteAllScalars=true]),
+		
+		    #"Removed Columns" = Table.RemoveColumns(#"Promoted Headers", {"Total commitment ", "Total ASK"}),
+		
+		    #"Unpivoted Columns" = Table.UnpivotOtherColumns(
+		        #"Removed Columns",
+		        {"Plant", "Plant_1", "Plant Head", "CBU Head", "Trimmed Code", "Material Code", "Material Desciption", "Domestic ASK", "Exports ASK"},
+		        "Attribute",
+		        "Value"
+		    ),
+		
+		    #"Renamed Columns" = Table.RenameColumns(#"Unpivoted Columns", {{"Attribute", "Week"}}),
+		
+		    #"Split Column" = Table.SplitColumn(
+		        #"Renamed Columns",
+		        "Week",
+		        Splitter.SplitTextByDelimiter("_", QuoteStyle.Csv),
+		        {"Type", "Week"}
+		    ),
+		
+		    #"Trimmed Text" = Table.TransformColumns(#"Split Column", {{"Week", Text.Trim, type text}}),
+		
+		    #"Changed Type" = Table.TransformColumnTypes(#"Trimmed Text", {{"Value", type number}})
+		
+		in
+		    #"Changed Type"
+	lineageTag: 38333b84-bb2b-4d54-95ab-6ef9ab8825bf
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Function
+
+expression Parameter1 = #"Sample File" meta [IsParameterQuery=true, BinaryIdentifier=#"Sample File", Type="Binary", IsParameterQueryRequired=true]
+	lineageTag: eca92fa6-548a-4398-801c-d705bf7166c8
+	queryGroup: 'Transform File from Receipt\Helper Queries'
+
+	annotation PBI_ResultType = Binary
+
+expression 'Transform Sample File' =
+		let
+		    Source = Excel.Workbook(Parameter1, null, true),
+		    SUMM_Sheet = Source{[Item="SUMM",Kind="Sheet"]}[Data],
+		    #"Promoted Headers" = Table.PromoteHeaders(SUMM_Sheet, [PromoteAllScalars=true])
+		in
+		    #"Promoted Headers"
+	lineageTag: c2288eaf-5d11-40d1-b345-4dcb38f841f9
+	queryGroup: 'Transform File from Receipt'
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+
+expression 'Sample File' =
+		let
+		    Source = Folder.Files("C:\Users\Keshav Dhameja\OneDrive - McKinsey & Company\Desktop\Files\2026\Radhika\Receipt"),
+		    Navigation1 = Source{0}[Content]
+		in
+		    Navigation1
+	lineageTag: a84af25a-46c8-4980-8206-c09c37421e46
+	queryGroup: 'Transform File from Receipt\Helper Queries'
+
+	annotation PBI_ResultType = Binary
+
+expression 'Transform File' =
+		let
+		    Source = (Parameter1 as binary) => let
+		    Source = Excel.Workbook(Parameter1, null, true),
+		    SUMM_Sheet = Source{[Item="SUMM",Kind="Sheet"]}[Data],
+		    #"Promoted Headers" = Table.PromoteHeaders(SUMM_Sheet, [PromoteAllScalars=true])
+		in
+		    #"Promoted Headers"
+		in
+		    Source
+	mAttributes: [ FunctionQueryBinding = "{""exemplarFormulaName"":""Transform Sample File""}" ]
+	lineageTag: faa6e2a9-fadc-49b7-976d-666e1b30f5cb
+	queryGroup: 'Transform File from Receipt\Helper Queries'
+
+	annotation PBI_ResultType = Function
+
+expression 'Errors in Domestic_AM Price' =
+		let
+		Source = #"Domestic_AM Price",
+		  #"Detected Type Mismatches" = let
+		    tableWithOnlyPrimitiveTypes = Table.SelectColumns(Source, Table.ColumnsOfType(Source, {type nullable number, type nullable text, type nullable logical, type nullable date, type nullable datetime, type nullable datetimezone, type nullable time, type nullable duration})),
+		    recordTypeFields = Type.RecordFields(Type.TableRow(Value.Type(tableWithOnlyPrimitiveTypes))),
+		    fieldNames = Record.FieldNames(recordTypeFields),
+		    fieldTypes = List.Transform(Record.ToList(recordTypeFields), each [Type]),
+		    pairs = List.Transform(List.Positions(fieldNames), (i) => {fieldNames{i}, (v) => if v = null or Value.Is(v, fieldTypes{i}) then v else error [Message = "The type of the value does not match the type of the column.", Detail = v], fieldTypes{i}})
+		in
+		    Table.TransformColumns(Source, pairs),
+		  #"Added Index" = Table.AddIndexColumn(#"Detected Type Mismatches", "Row Number" ,1),
+		  #"Kept Errors" = Table.SelectRowsWithErrors(#"Added Index", {"Material Code", "Unit Price"}),
+		  #"Reordered Columns" = Table.ReorderColumns(#"Kept Errors", {"Row Number", "Material Code", "Unit Price"})
+		in
+		    #"Reordered Columns"
+	lineageTag: 8eba5f56-ded7-437f-abfd-070ad2cab357
+	queryGroup: 'Query Errors - 24-03-2026 15:46:34'
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+

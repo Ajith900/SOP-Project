@@ -1,0 +1,68 @@
+table 'Po Price'
+	lineageTag: 459f1679-c47b-4024-99fc-4821ed037cc5
+
+	column 'Vendor CODE'
+		dataType: int64
+		formatString: 0
+		lineageTag: c9c34a58-2197-4aa8-b204-0a22f35dbf2e
+		summarizeBy: sum
+		sourceColumn: Vendor CODE
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Material Code'
+		dataType: string
+		lineageTag: e9ca8268-3e1f-4c29-b64a-1d3e3e9ecdac
+		summarizeBy: none
+		sourceColumn: Material Code
+
+		annotation SummarizationSetBy = Automatic
+
+	column Material_Vendor
+		dataType: string
+		lineageTag: 98b989bc-dd7b-4835-b57f-1802e50faa6e
+		summarizeBy: none
+		sourceColumn: Material_Vendor
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Net Price '
+		dataType: double
+		lineageTag: f860bd69-2874-4be9-87d0-6c9a0262a515
+		summarizeBy: sum
+		sourceColumn: "Net Price "
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	partition 'Po Price' = m
+		mode: import
+		source = ```
+				let
+				    Source = Excel.Workbook(File.Contents("C:\Users\Keshav Dhameja\OneDrive - McKinsey & Company\Desktop\Files\2026\Radhika\PO Price.xlsx"), null, true),
+				    Sheet2_Sheet = Source{[Item="Sheet2",Kind="Sheet"]}[Data],
+				    #"Promoted Headers" = Table.PromoteHeaders(Sheet2_Sheet, [PromoteAllScalars=true]),
+				    #"Changed Type" = Table.TransformColumnTypes(#"Promoted Headers",{{"Vendor CODE", Int64.Type}, {"NAME", type text}, {"Material", type text}, {"Short Text", type text}, {"Net Price", type number}}),
+				    #"Renamed Columns" = Table.RenameColumns(#"Changed Type",{{"Material", "Material Code"}}),
+				    #"Added Custom" = Table.AddColumn(#"Renamed Columns", "Material_Vendor", each Table.AddColumn(
+				    #"Renamed Columns",
+				    "Material_Vendor",
+				    each Text.Upper(Text.Trim(Text.From([Material Code]))) 
+				        & "_" & 
+				        Text.Upper(Text.Trim(Text.From([Vendor CODE])))
+				)),
+				    #"Grouped Rows" = Table.Group(#"Added Custom", {"Material Code", "Vendor CODE"}, {{"Net Price ", each List.Max([Net Price]), type nullable number}}),
+				    Material_Vendor = Table.AddColumn(
+				    #"Grouped Rows",
+				    "Material_Vendor",
+				    each Text.From([Material Code]) & "_" & Text.From([Vendor CODE])
+				)
+				in
+				    Material_Vendor
+				```
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+

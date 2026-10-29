@@ -1,0 +1,38 @@
+relationship aee3e427-8694-f2f7-ebe9-c60c677b3400
+	fromColumn: 'Schedule & Commit'.Material_Vendor
+	toColumn: 'Po Price'.Material_Vendor
+
+relationship AutoDetected_c3e6bb97-1559-4600-9d71-ef0c22aefd68
+	fromColumn: 'Schedule & Commit'.'Material Code'
+	toColumn: 'Domestic_AM Price'.'Material Code'
+
+relationship 3ff72499-37d1-7772-f1b3-d39effea1012
+	isActive: false
+	crossFilteringBehavior: bothDirections
+	toCardinality: many
+	fromColumn: 'Sheet1 (4)'.Plant
+	toColumn: 'Schedule & Commit'.Vendor
+
+relationship 87b4e1a6-0aeb-7a6b-d539-f2db1a10f81f
+	isActive: false
+	crossFilteringBehavior: bothDirections
+	toCardinality: many
+	fromColumn: 'Schedule & Commit'.Material_Vendor
+	toColumn: Receipt.Material_Vendor
+
+relationship 573b1f47-2d71-11ac-d927-37cafe634600
+	fromColumn: 'Schedule & Commit'.'Material Code'
+	toColumn: 'Exports_AM Price'.'Material Code'
+
+relationship c6260b2f-5b8f-2dca-2c62-8cf670895cbf
+	fromColumn: Receipt.'Material No'
+	toColumn: 'Domestic_AM Price'.'Material Code'
+
+relationship 569dc7b8-2d8f-4f29-7167-f8d1a747775d
+	fromColumn: Receipt.'Material No'
+	toColumn: 'Exports_AM Price'.'Material Code'
+
+relationship 1c4314c6-2498-e8d4-7a16-d92a45888b0d
+	fromColumn: Receipt.Material_Vendor
+	toColumn: 'Po Price'.Material_Vendor
+

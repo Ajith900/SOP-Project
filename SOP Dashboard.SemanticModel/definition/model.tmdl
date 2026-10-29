@@ -1,0 +1,37 @@
+model Model
+	culture: en-IN
+	defaultPowerBIDataSourceVersion: powerBI_V3
+	sourceQueryCulture: en-IN
+	dataAccessOptions
+		legacyRedirects
+		returnErrorValuesAsNull
+
+queryGroup 'Transform File from Receipt'
+
+	annotation PBI_QueryGroupOrder = 0
+
+queryGroup 'Transform File from Receipt\Helper Queries'
+
+	annotation PBI_QueryGroupOrder = 0
+
+/// Errors in queries that were loaded on 24-03-2026 15:46:34.
+queryGroup 'Query Errors - 24-03-2026 15:46:34'
+
+	annotation PBI_QueryGroupOrder = 2
+
+annotation __PBI_TimeIntelligenceEnabled = 1
+
+annotation PBI_QueryOrder = ["Sheet1 (3)","Schedule & Commit","Receipt","Parameter1","Transform Sample File","Sample File","Transform File","Po Price","Domestic_AM Price","Exports_AM Price","Errors in Domestic_AM Price","Sheet1 (4)"]
+
+annotation PBI_ProTooling = ["DevMode"]
+
+ref table 'Schedule & Commit'
+ref table Receipt
+ref table 'Po Price'
+ref table 'Domestic_AM Price'
+ref table 'Exports_AM Price'
+ref table Toggle
+ref table 'Sheet1 (4)'
+
+ref cultureInfo en-IN
+

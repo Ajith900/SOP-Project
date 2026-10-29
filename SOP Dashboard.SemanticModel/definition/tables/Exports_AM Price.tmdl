@@ -1,0 +1,46 @@
+table 'Exports_AM Price'
+	lineageTag: 12ee9b08-333c-46b3-8cf2-b716f46bb99c
+
+	column 'Material Code'
+		dataType: string
+		lineageTag: a576f38e-736b-4182-bbdd-8d290da20fe9
+		summarizeBy: none
+		sourceColumn: Material Code
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Unit Price'
+		dataType: int64
+		formatString: 0
+		lineageTag: 5eb85391-9ed5-403b-b79d-afd673b45678
+		summarizeBy: sum
+		sourceColumn: Unit Price
+
+		annotation SummarizationSetBy = Automatic
+
+	column Type
+		dataType: string
+		lineageTag: be90e2d7-8ef8-4bfe-9b7a-203688b6f14a
+		summarizeBy: none
+		sourceColumn: Type
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'Exports_AM Price' = m
+		mode: import
+		source =
+				let
+				    Source = Excel.Workbook(File.Contents("C:\Users\Keshav Dhameja\OneDrive - McKinsey & Company\Desktop\Files\2026\Radhika\AfterMarket.xlsx"), null, true),
+				    #"Exports_AM Price_Sheet" = Source{[Item="Exports_AM Price",Kind="Sheet"]}[Data],
+				    #"Promoted Headers" = Table.PromoteHeaders(#"Exports_AM Price_Sheet", [PromoteAllScalars=true]),
+				    #"Removed Columns" = Table.RemoveColumns(#"Promoted Headers",{"Column1"}),
+				    #"Added Custom" = Table.AddColumn(#"Removed Columns", "Type", each "Export"),
+				    #"Changed Type" = Table.TransformColumnTypes(#"Added Custom",{{"Unit Price", Int64.Type}}),
+				    #"Replaced Errors" = Table.ReplaceErrorValues(#"Changed Type", {{"Unit Price", 0}})
+				in
+				    #"Replaced Errors"
+
+	annotation PBI_ResultType = Table
+
+	annotation PBI_NavigationStepName = Navigation
+

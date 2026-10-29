@@ -1,0 +1,639 @@
+table 'Domestic_AM Price'
+	lineageTag: a51c4021-1dfe-4c28-9d0b-045e520717a0
+
+	measure 'Total Ask' =
+			
+			SUM('Schedule & Commit'[Ask])
+		lineageTag: 0aae9681-5d38-45cd-ac38-f82693cb7d11
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Total Receipt_2' =
+			
+			SUM('Receipt'[Receipt])
+		lineageTag: cd9e1771-30f5-464b-aaa2-ecd9fe727b46
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Short Receipt Final Clean' =
+			
+			VAR CommitQty =
+			    CALCULATE(
+			        SUM('Schedule & Commit'[Commit]),
+			        REMOVEFILTERS('Schedule & Commit'[CBU Head]),
+			        REMOVEFILTERS('Schedule & Commit'[Plant Head])
+			    )
+			
+			VAR ReceiptQty =
+			    CALCULATE(
+			        SUM('Receipt'[Receipt]),
+			        REMOVEFILTERS('Schedule & Commit'[CBU Head]),
+			        REMOVEFILTERS('Schedule & Commit'[Plant Head])
+			    )
+			
+			VAR Result =
+			    CommitQty - ReceiptQty
+			
+			VAR FirstCBU =
+			    CALCULATE(
+			        MIN('Schedule & Commit'[CBU Head]),
+			        ALLEXCEPT('Receipt', 'Receipt'[Plant_New])
+			    )
+			
+			RETURN
+			IF(
+			    SELECTEDVALUE('Schedule & Commit'[CBU Head]) = FirstCBU,
+			    Result,
+			    BLANK()
+			)
+		lineageTag: c0744d1e-ef48-4577-bdb1-efdf8aa4264c
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Short Receipt Clean' =
+			
+			VAR SR_Value =
+			    CALCULATE(
+			        [Short Receipt Final Clean],
+			        REMOVEFILTERS('Schedule & Commit'[CBU Head])
+			    )
+			
+			RETURN
+			IF(
+			    SR_Value > 0,
+			    SR_Value,
+			    BLANK()
+			)
+		lineageTag: 0ca86bee-7c27-47fd-a6cd-ce4c09b101b8
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Total Ask Value' =
+			
+			SUMX(
+			    'Schedule & Commit',
+			    'Schedule & Commit'[Ask] *
+			    RELATED('Po Price'[Net Price ])
+			)
+		lineageTag: 6e7d052f-d6e0-42a8-949e-39d094a46433
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Total Commit Value' =
+			
+			SUMX(
+			    'Schedule & Commit',
+			    'Schedule & Commit'[Commit] *
+			    RELATED('Po Price'[Net Price ])
+			)
+		lineageTag: 5b8ed88d-e68e-4190-9158-0f736d0184fb
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Ask Final' =
+			
+			SWITCH(
+			    SELECTEDVALUE('Toggle'[View]),
+			
+			    // ✅ Quantity
+			    "Quantity",
+			        CALCULATE(
+			            SUM('Schedule & Commit'[Ask]),
+			            REMOVEFILTERS('Schedule & Commit'[Week])
+			        ),
+			
+			    // ✅ PO Price
+			    "PO Price",
+			        CALCULATE(
+			            SUMX(
+			                'Schedule & Commit',
+			                'Schedule & Commit'[Ask] *
+			                CALCULATE(MAX('Po Price'[Net Price ]))
+			            )/100000,
+			            REMOVEFILTERS('Schedule & Commit'[Week])
+			        ),
+			
+			    // ✅ Aftermarket
+			"Aftermarket",
+			        CALCULATE(
+			            SUMX(
+			                'Schedule & Commit',
+			                'Schedule & Commit'[Ask] *
+			                VAR DomesticPrice =
+			                    CALCULATE(MAX('Domestic_AM Price'[Unit Price]))
+			                VAR ExportPrice =
+			                    CALCULATE(MAX('Exports_AM Price'[Unit Price]))
+			                RETURN
+			                    SWITCH(
+			                        TRUE(),
+			                        DomesticPrice = 0, ExportPrice,
+			                        ExportPrice = 0, DomesticPrice,
+			                        (DomesticPrice + ExportPrice) / 2
+			                    )
+			            )/100000,
+			            REMOVEFILTERS('Schedule & Commit'[Week])
+			        )
+			)
+		formatString: 0
+		lineageTag: 3fec2bd7-6a50-4c92-9eb5-46c892b08221
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'Commit Final' =
+			
+			SWITCH(
+			    SELECTEDVALUE('Toggle'[View]),
+			
+			    // ✅ Quantity
+			    "Quantity",
+			        CALCULATE(
+			            SUM('Schedule & Commit'[Commit]),
+			            REMOVEFILTERS('Schedule & Commit'[Week])
+			        ),
+			
+			    // ✅ PO Price
+			    "PO Price",
+			        CALCULATE(
+			            SUMX(
+			                'Schedule & Commit',
+			                'Schedule & Commit'[Commit] *
+			                CALCULATE(MAX('Po Price'[Net Price ]))
+			            )/100000,
+			            REMOVEFILTERS('Schedule & Commit'[Week])
+			        ),
+			
+			    // ✅ Aftermarket (Corrected)
+			    "Aftermarket",
+			        CALCULATE(
+			            SUMX(
+			                'Schedule & Commit',
+			                'Schedule & Commit'[Commit] *
+			                VAR DomesticPrice =
+			                    CALCULATE(MAX('Domestic_AM Price'[Unit Price]))
+			                VAR ExportPrice =
+			                    CALCULATE(MAX('Exports_AM Price'[Unit Price]))
+			                RETURN
+			                    SWITCH(
+			                        TRUE(),
+			                        DomesticPrice = 0, ExportPrice,
+			                        ExportPrice = 0, DomesticPrice,
+			                        (DomesticPrice + ExportPrice) / 2
+			                    )
+			            )/100000,
+			            REMOVEFILTERS('Schedule & Commit'[Week])
+			        )
+			)
+		formatString: 0
+		lineageTag: b5e68022-7340-4617-8a6c-156d5e728c3f
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'Total Commit Qty' = SUM('Schedule & Commit'[Commit])
+		formatString: 0
+		lineageTag: cc90589a-8c5a-4867-97b8-669c0b2ef94e
+
+	measure 'Total Ask Qty' = SUM('Schedule & Commit'[Ask])
+		lineageTag: 44030e75-e499-4260-a4b6-26f21d763706
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Adjusted Receipt' =
+			
+			SUMX(
+			    VALUES('Schedule & Commit'[Material_Vendor]),
+			    MIN(
+			        CALCULATE(SUM('Schedule & Commit'[Commit])),
+			        CALCULATE(SUM(Receipt[Receipt]))
+			    )
+			)
+		formatString: 0
+		lineageTag: 6c1b5048-6f06-4d8f-b532-ccac38853510
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'Ask Format' =
+			
+			SWITCH(
+			    SELECTEDVALUE('Toggle'[View]),
+			    "Quantity", "#,##0.0K",
+			    "Value", "#,##0.0 L"
+			)
+		lineageTag: 749eed3d-940e-44a5-8dab-68c5151e31cc
+
+	measure 'Gap Final' =
+			
+			SUMX(
+			    VALUES('Schedule & Commit'[Material Code]),
+			    VAR CommitVal = [Commit Final]   -- already toggle based
+			    VAR ReceiptAdj = [Receipt as per Commitment]  -- already toggle based
+			    RETURN
+			        CommitVal - ReceiptAdj
+			)
+		lineageTag: f904ddb3-bc14-40a4-a1fa-9b4ce02a72ee
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Receipt (Mapped)' =
+			
+			CALCULATE(
+			    SUM('Receipt'[Receipt]),
+			    TREATAS(
+			        VALUES('Schedule & Commit'[Material Code]),
+			        'Receipt'[Material No]
+			    )
+			)
+		lineageTag: 09b369b4-0bca-4d8b-a6d8-f3650a8c68ac
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Receipt as per Commitment' =
+			
+			SUMX(
+			    VALUES('Schedule & Commit'[Material Code]),
+			    VAR CommitVal =
+			        CALCULATE(SUM('Schedule & Commit'[Commit]))
+			    VAR ReceiptVal =
+			        CALCULATE(
+			            SUM('Receipt'[Receipt]),
+			            FILTER(
+			                ALL('Receipt'),
+			                'Receipt'[Material No] =
+			                    SELECTEDVALUE('Schedule & Commit'[Material Code])
+			            )
+			        )
+			    RETURN
+			        MIN(CommitVal, ReceiptVal)
+			)
+		lineageTag: bf4dd776-09dc-43b7-9c36-e3d06eb63f61
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Ask Commitment Gap' = ```
+			
+			CALCULATE(
+			    SUMX(
+			        'Schedule & Commit',
+			        VAR AskValue =
+			            'Schedule & Commit'[Ask] *
+			            CALCULATE(MAX('Po Price'[Net Price ]))
+			
+			        VAR CommitValue =
+			            'Schedule & Commit'[Commit] *
+			            CALCULATE(MAX('Po Price'[Net Price ]))
+			
+			        RETURN
+			            IF(AskValue > CommitValue, AskValue - CommitValue)
+			    ) / 100000,
+			    
+			    REMOVEFILTERS('Schedule & Commit'[Week])   -- 🔥 KEY ADDITION
+			)
+			```
+		formatString: 0
+		lineageTag: b4867df9-b003-4814-bcaa-304ce11221e7
+
+	measure 'MTD Commitment' =
+			
+			SUM('Schedule & Commit'[Commit])
+		lineageTag: 34bce53e-d93e-4dae-8be2-347903f8426c
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Total Ask(Ignore Week)' =
+			
+			CALCULATE(SUM('Schedule & Commit'[Ask]),
+			REMOVEFILTERS('Schedule & Commit'[Week])
+			)
+		formatString: 0
+		lineageTag: 3f0d89fb-0b49-4c0f-9da8-defd080ded0a
+
+	measure 'Total Commit(Ignore Week)' =
+			
+			CALCULATE(SUM('Schedule & Commit'[Commit]),
+			REMOVEFILTERS('Schedule & Commit'[Week])
+			)
+		formatString: 0
+		lineageTag: c561922d-5b87-40ae-8629-0a3e502ea52e
+
+	measure Receipt/Commitment = DIVIDE( [Final Receipt _1],[Total Commit Qty],0)
+		formatString: 0%;-0%;0%
+		lineageTag: 9d12d8d2-35dc-4ac2-8f68-4dfc5d67c5a5
+
+	measure 'total schedule ask' =
+			
+			SUMX(
+			    'Schedule & Commit',
+			    [Total Ask] * 0.5
+			)
+		lineageTag: 77045f9d-5a61-4727-840e-b8d48ecd38a8
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Schedule Final' = ```
+			
+			SWITCH(
+			    SELECTEDVALUE('Toggle'[View]),
+			
+			    // ✅ Quantity
+			    "Quantity",
+			        SUM('Schedule & Commit'[Ask]),
+			
+			    // ✅ PO Price
+			    "PO Price",
+			        SUMX(
+			            'Schedule & Commit',
+			            'Schedule & Commit'[Ask] *
+			            CALCULATE(MAX('Po Price'[Net Price ]))
+			        )/100000,
+			       
+			    // ✅ Aftermarket (Corrected)
+			    "Aftermarket",
+			        CALCULATE(
+			            SUMX(
+			                'Schedule & Commit',
+			                'Schedule & Commit'[Ask] *
+			                VAR DomesticPrice =
+			                    CALCULATE(MAX('Domestic_AM Price'[Unit Price]))
+			                VAR ExportPrice =
+			                    CALCULATE(MAX('Exports_AM Price'[Unit Price]))
+			                RETURN
+			                    SWITCH(
+			                        TRUE(),
+			                        DomesticPrice = 0, ExportPrice,
+			                        ExportPrice = 0, DomesticPrice,
+			                        (DomesticPrice + ExportPrice) / 2
+			                    )
+			            )/100000
+			        )
+			)
+			```
+		formatString: 0
+		lineageTag: b2955c66-db36-496d-8e93-415279d17b37
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'Commit_ Final_' =
+			
+			SWITCH(
+			    SELECTEDVALUE('Toggle'[View]),
+			
+			    // ✅ Quantity
+			    "Quantity",
+			        SUM('Schedule & Commit'[Commit]),
+			
+			    // ✅ PO Price
+			    "PO Price",
+			        SUMX(
+			            'Schedule & Commit',
+			            'Schedule & Commit'[Commit] *
+			            CALCULATE(MAX('Po Price'[Net Price ]))
+			        )/100000,
+			
+			    // ✅ Aftermarket (Updated Logic)
+			    "Aftermarket",
+			        SUMX(
+			            'Schedule & Commit',
+			            'Schedule & Commit'[Commit] *
+			            VAR DomesticPrice =
+			                CALCULATE(MAX('Domestic_AM Price'[Unit Price]))
+			            VAR ExportPrice =
+			                CALCULATE(MAX('Exports_AM Price'[Unit Price]))
+			            RETURN
+			                SWITCH(
+			                    TRUE(),
+			                    DomesticPrice = 0, ExportPrice,
+			                    ExportPrice = 0, DomesticPrice,
+			                    (DomesticPrice + ExportPrice) / 2
+			                )
+			        )/100000
+			)
+		formatString: 0
+		lineageTag: 99766a4e-6fbf-44a2-9849-154407ffe5bb
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'Domestic ASK Final' = ```
+			
+			SWITCH(
+			    SELECTEDVALUE('Toggle'[View]),
+			 
+			    // ✅ Quantity (deduplicated)
+			    "Quantity",
+			        CALCULATE(
+			            SUMX(
+			                VALUES('Schedule & Commit'[Material_Vendor]),
+			                CALCULATE(MAX('Schedule & Commit'[Domestic ASK]))
+			            ),
+			            REMOVEFILTERS('Schedule & Commit'[Week])
+			        ),
+			 
+			    // ✅ PO Price (multiply first, then sum)
+			    "PO Price",
+			        CALCULATE(
+			            SUMX(
+			                'Schedule & Commit',
+			                'Schedule & Commit'[Domestic ASK] *
+			                CALCULATE(MAX('Po Price'[Net Price ]))
+			            ),
+			            REMOVEFILTERS('Schedule & Commit'[Week])
+			        ),
+			 
+			    // ✅ Aftermarket (same logic as your Ask/Commit)
+			    "Aftermarket",
+			        CALCULATE(
+			            SUMX(
+			                'Schedule & Commit',
+			                'Schedule & Commit'[Domestic ASK] *
+			                VAR DomesticPrice =
+			                    CALCULATE(MAX('Domestic_AM Price'[Unit Price]))
+			                VAR ExportPrice =
+			                    CALCULATE(MAX('Exports_AM Price'[Unit Price]))
+			                RETURN
+			                    SWITCH(
+			                        TRUE(),
+			                        DomesticPrice = 0, ExportPrice,
+			                        ExportPrice = 0, DomesticPrice,
+			                        (DomesticPrice + ExportPrice) / 2
+			                    )
+			            ),
+			            REMOVEFILTERS('Schedule & Commit'[Week])
+			        )
+			)
+			```
+		lineageTag: 8b1504cc-e2c1-462f-8c14-858db1a867a4
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Ask Commitment Gap_final' =
+			
+			SUMX(
+			    VALUES('Schedule & Commit'[Material Code]),
+			
+			    VAR TotalAsk =
+			        CALCULATE(SUM('Schedule & Commit'[Ask]))
+			
+			    VAR TotalCommit =
+			        CALCULATE(SUM('Schedule & Commit'[Commit]))
+			
+			    VAR Price =
+			        CALCULATE(MAX('Po Price'[Net Price ]))
+			
+			    RETURN
+			        (TotalAsk - TotalCommit) * Price
+			)
+		lineageTag: 1c454cad-c168-4819-a7e8-4f9165e71ebc
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Short Receipt_SKU' =
+			
+			CALCULATE(
+			    SUMX(
+			        VALUES('Schedule & Commit'[Material_Vendor]),   -- 🔥 removes duplication
+			
+			        VAR CommitQty =
+			            CALCULATE(SUM('Schedule & Commit'[Commit]))
+			
+			        VAR ReceiptQty =
+			            CALCULATE(
+			                SUM('Receipt'[Receipt]),
+			                TREATAS(
+			                    VALUES('Schedule & Commit'[Material_Vendor]),
+			                    'Receipt'[Material_Vendor]
+			                )
+			            )
+			
+			        VAR GapQty =
+			            CommitQty - ReceiptQty
+			
+			        VAR Price =
+			            CALCULATE(
+			                MAX('Po Price'[Net Price ]),
+			                TREATAS(
+			                    VALUES('Schedule & Commit'[Material Code]),   -- 🔥 ensures correct price
+			                    'Po Price'[Material Code]
+			                )
+			            )
+			
+			        RETURN
+			            IF(GapQty > 0, GapQty * Price)
+			    ) / 100000,
+			
+			    REMOVEFILTERS('Schedule & Commit'[Week])
+			)
+		formatString: 0
+		lineageTag: 12af4241-2ae3-4dac-9049-7aa7568faa76
+
+		annotation PBI_FormatHint = {"isDecimal":true}
+
+	measure 'Commit_ Final_ for receipt' =
+			
+			SWITCH(
+			    SELECTEDVALUE('Toggle'[View], "PO Price"),  -- ✅ default here
+			
+			    "Quantity",
+			        SUM('Schedule & Commit'[Commit]),
+			
+			    "PO Price",
+			        SUMX(
+			            'Schedule & Commit',
+			            'Schedule & Commit'[Commit] *
+			            CALCULATE(MAX('Po Price'[Net Price ]))
+			        ) / 100000,
+			
+			    "Aftermarket",
+			        SUMX(
+			            'Schedule & Commit',
+			            'Schedule & Commit'[Commit] *
+			            VAR DomesticPrice =
+			                CALCULATE(MAX('Domestic_AM Price'[Unit Price]))
+			            VAR ExportPrice =
+			                CALCULATE(MAX('Exports_AM Price'[Unit Price]))
+			            RETURN
+			                SWITCH(
+			                    TRUE(),
+			                    DomesticPrice = 0, ExportPrice,
+			                    ExportPrice = 0, DomesticPrice,
+			                    (DomesticPrice + ExportPrice) / 2
+			                )
+			        ) / 100000
+			)
+		lineageTag: 6c5fe877-ac1b-40f0-97b8-3dba45b1d0a5
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'View Note' =
+			
+			VAR SelectedView = SELECTEDVALUE('Toggle'[View])
+			RETURN
+			    SWITCH(
+			        TRUE(),
+			        SelectedView = "PO Price", "All values are in INR Lakhs",
+			        SelectedView = "Aftermarket", "All values are in INR Lakhs",
+			        SelectedView = "Quantity", "All values are in Units",
+			        "Select a View"
+			    )
+		lineageTag: f4b97091-24bf-4dd3-b680-50926aa0d443
+
+	column 'Material Code'
+		dataType: string
+		lineageTag: ad1c2c03-c475-4b40-b230-f51b07139fa2
+		summarizeBy: none
+		sourceColumn: Material Code
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Unit Price'
+		dataType: int64
+		lineageTag: 2a85a122-43fe-4e4f-935a-86325147abcd
+		summarizeBy: sum
+		sourceColumn: Unit Price
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column Type
+		dataType: string
+		lineageTag: 4327d6a0-f01c-4119-adc1-386b9aff424e
+		summarizeBy: none
+		sourceColumn: Type
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Receipt per Material' =
+			
+			VAR CurrentMaterial =
+			    SELECTEDVALUE('Schedule & Commit'[Material Code])
+			
+			RETURN
+			CALCULATE(
+			    SUM('Receipt'[Receipt]),
+			    FILTER(
+			        ALL('Receipt'),
+			        'Receipt'[Material No] = CurrentMaterial
+			    )
+			)
+		lineageTag: f5e0c727-1643-421d-841b-e429c34b39a7
+		summarizeBy: sum
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	partition 'Domestic_AM Price' = m
+		mode: import
+		source =
+				let
+				    Source = Excel.Workbook(File.Contents("C:\Users\Keshav Dhameja\OneDrive - McKinsey & Company\Desktop\Files\2026\Radhika\AfterMarket.xlsx"), null, true),
+				    #"Domestic_AM Price_Sheet" = Source{[Item="Domestic_AM Price",Kind="Sheet"]}[Data],
+				    #"Promoted Headers" = Table.PromoteHeaders(#"Domestic_AM Price_Sheet", [PromoteAllScalars=true]),
+				    #"Added Custom" = Table.AddColumn(#"Promoted Headers", "Type", each "Domestic"),
+				    #"Changed Type" = Table.TransformColumnTypes(#"Added Custom",{{"Unit Price", Int64.Type}}),
+				    #"Replaced Errors" = Table.ReplaceErrorValues(#"Changed Type", {{"Unit Price", 0}})
+				in
+				    #"Replaced Errors"
+
+	annotation PBI_ResultType = Table
+
+	annotation PBI_NavigationStepName = Navigation
+

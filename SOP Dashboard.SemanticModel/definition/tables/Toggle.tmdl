@@ -1,0 +1,26 @@
+table Toggle
+	lineageTag: 21661287-0f21-4d75-be35-6bdd5051de56
+
+	column View
+		lineageTag: 4f27051f-f34f-47ba-a40e-7a761b0caf1c
+		summarizeBy: none
+		isNameInferred
+		sourceColumn: [View]
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Toggle = calculated
+		mode: import
+		source =
+				
+				DATATABLE(
+				    "View", STRING,
+				    {
+				        {"Quantity"},
+				        {"PO Price"},
+				        {"Aftermarket"}
+				    }
+				)
+
+	annotation PBI_Id = 49bcfd090c554826aa45b1e8ab79a50e
+

@@ -1,0 +1,119 @@
+table Receipt
+	lineageTag: 6ec3f26f-5282-4681-87f1-c6f8d575f286
+
+	column 'Material No'
+		dataType: string
+		lineageTag: e2f1125d-6c2a-48c7-b3e8-6e7c358b6660
+		summarizeBy: none
+		sourceColumn: Material No
+
+		annotation SummarizationSetBy = Automatic
+
+	column Week
+		dataType: string
+		lineageTag: 6105f105-9051-40ca-8828-d24b95463782
+		summarizeBy: none
+		sourceColumn: Week
+
+		annotation SummarizationSetBy = Automatic
+
+	column Receipt
+		dataType: double
+		lineageTag: 859d8717-6aba-43ba-bbb8-21e66b584979
+		summarizeBy: sum
+		sourceColumn: Receipt
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column Plant_New
+		dataType: string
+		lineageTag: f7e733f6-8ba4-444c-b185-37e239adb639
+		summarizeBy: none
+		sourceColumn: Plant_New
+
+		annotation SummarizationSetBy = Automatic
+
+	column Type
+		dataType: string
+		lineageTag: 11aa9b2e-fbf0-4486-9168-ac030aa53db0
+		summarizeBy: none
+		sourceColumn: Type
+
+		annotation SummarizationSetBy = Automatic
+
+	column Material_Vendor
+		dataType: string
+		lineageTag: 3d563bda-4ef8-457d-9e81-bc137a8323d7
+		summarizeBy: none
+		sourceColumn: Material_Vendor
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Receipt = m
+		mode: import
+		source = ```
+				let
+				    Source = Folder.Files("C:\Users\Keshav Dhameja\OneDrive - McKinsey & Company\Desktop\Files\2026\Radhika\Receipt"),
+				    #"Filtered Hidden Files1" = Table.SelectRows(Source, each [Attributes]?[Hidden]? <> true),
+				    #"Invoke Custom Function1" = Table.AddColumn(#"Filtered Hidden Files1", "Transform File", each #"Transform File"([Content])),
+				    #"Renamed Columns1" = Table.RenameColumns(#"Invoke Custom Function1", {"Name", "Source.Name"}),
+				    #"Removed Other Columns1" = Table.SelectColumns(#"Renamed Columns1", {"Source.Name", "Transform File"}),
+				    #"Expanded Table Column1" = Table.ExpandTableColumn(#"Removed Other Columns1", "Transform File", Table.ColumnNames(#"Transform File"(#"Sample File"))),
+				    #"Changed Type" = Table.TransformColumnTypes(#"Expanded Table Column1",{{"Source.Name", type text}, {"Sum of Rec-Qty", type text}, {"Column2", type text}, {"Column3", type text}, {"Column4", type text}, {"Plant", Int64.Type}, {"Column6", Int64.Type}, {"Column7", Int64.Type}, {"Column8", type any}}),
+				    #"Promoted Headers" = Table.PromoteHeaders(#"Changed Type", [PromoteAllScalars=true]),
+				    #"Changed Type1" = Table.TransformColumnTypes(#"Promoted Headers",{{"Receipt_07Mar.xlsm", type text}, {"Vendor", Int64.Type}, {"Vendor Name", type text}, {"Material No", type text}, {"Material Description", type text}, {"1122", Int64.Type}, {"1131", Int64.Type}, {"1183", Int64.Type}, {"Grand Total", Int64.Type}}),
+				    #"Removed Bottom Rows" = Table.RemoveLastN(#"Changed Type1",1),
+				    #"Renamed Columns" = Table.RenameColumns(#"Removed Bottom Rows",{{"Receipt_07Mar.xlsm", "Name"}}),
+				    #"Added Custom" = Table.AddColumn(#"Renamed Columns", "Date", each Date.FromText(
+				    Text.Middle([Name], Text.PositionOf([Name], "_")+1, 2) 
+				    & "-" &
+				    Text.Middle([Name], Text.PositionOf([Name], "_")+3, 3) 
+				    & "-2026"
+				)),
+				    #"Added Custom1" = Table.AddColumn(
+				    #"Added Custom",
+				    "Week",
+				    each "Week " & Number.ToText(Number.RoundUp(Date.Day([Date]) / 7))
+				),
+				    #"Removed Columns" = Table.RemoveColumns(#"Added Custom1",{"Grand Total"}),
+				    #"Added Custom2" = Table.AddColumn(#"Removed Columns", "Plant_New", each if Text.Length(Text.From([Vendor])) = 4 then [Vendor] else null),
+				    #"Filled Down" = Table.FillDown(#"Added Custom2",{"Plant_New"}),
+				    #"Added Custom3" = Table.AddColumn(#"Filled Down", "Vendor_Clean", each if Text.Length(Text.From([Vendor])) > 4 then [Vendor] else null),
+				    #"Filtered Rows1" = Table.SelectRows(#"Added Custom3", each ([Plant_New] <> null)),
+				    #"Unpivoted Columns" = Table.UnpivotOtherColumns(
+				    #"Filtered Rows1",
+				    {
+				        "Name",
+				        "Vendor",
+				        "Vendor Name",
+				        "Vendor_Clean",
+				        "Plant_New",
+				        "Material No",
+				        "Material Description",
+				        "Date",
+				        "Week"
+				    },
+				    "Attribute",
+				    "Value"
+				),
+				    #"Renamed Columns2" = Table.RenameColumns(#"Unpivoted Columns",{{"Attribute", "Plant"}, {"Value", "Receipt"}}),
+				    #"Added Custom4" = Table.AddColumn(#"Renamed Columns2", "Type", each if [Plant] = "1131" then "Export"
+				else "Domestic"),
+				    #"Trimmed Text" = Table.TransformColumns(#"Added Custom4",{{"Plant", Text.Trim, type text}}),
+				    #"Cleaned Text" = Table.TransformColumns(#"Trimmed Text",{{"Plant", Text.Clean, type text}}),
+				    #"Trimmed Text1" = Table.TransformColumns(#"Cleaned Text",{{"Week", Text.Trim, type text}, {"Material No", Text.Trim, type text}}),
+				    #"Cleaned Text1" = Table.TransformColumns(#"Trimmed Text1",{{"Week", Text.Clean, type text}, {"Material No", Text.Clean, type text}}),
+				    #"Grouped Rows" = Table.Group(#"Cleaned Text1", {"Plant_New", "Material No", "Week", "Type"}, {{"Receipt", each List.Sum([Receipt]), type number}}),
+				    #"Added Custom5" = Table.AddColumn(#"Grouped Rows", "Material_Vendor",
+				    each Text.From([Material No]) & "_" & Text.From([Plant_New])
+				)
+				in
+				    #"Added Custom5"
+				```
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+

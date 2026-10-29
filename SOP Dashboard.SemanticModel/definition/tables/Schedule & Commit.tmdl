@@ -1,0 +1,559 @@
+table 'Schedule & Commit'
+	lineageTag: 696e734e-93b8-4000-92d3-816e35aad5da
+
+	measure '% Commitment_2' =
+			
+			DIVIDE([Total Commit(Ignore Week)], [Total Ask(Ignore Week)],0)
+		formatString: 0%;-0%;0%
+		lineageTag: 402618b8-941f-436a-8bb2-f306939ea578
+
+	measure 'Total Receipt' =
+			
+			SUMX(
+			    VALUES('Schedule & Commit'[Material_Vendor]),
+			    CALCULATE(SUM('Receipt'[Receipt]))
+			)
+		lineageTag: cb9c4cb9-eb47-44e5-8aa7-f460a4d17bfc
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Receipt %' =
+			
+			DIVIDE(
+			    [Total Receipt],
+			    SUM('Schedule & Commit'[Commit])
+			)
+		formatString: 0.00%;-0.00%;0.00%
+		lineageTag: b91ac314-43d4-4f94-a2dd-ea68cffd5763
+
+	measure 'Short Receipt_2' =
+			
+			VAR SR = [Short Commitment]
+			
+			RETURN
+			IF(
+			    SELECTEDVALUE('Schedule & Commit'[CBU Head]) =
+			        CALCULATE(
+			            MIN('Schedule & Commit'[CBU Head]),
+			            ALLEXCEPT('Receipt', 'Receipt'[Plant_New])
+			        ),
+			    SR,
+			    BLANK()
+			)
+		lineageTag: 69ddcc1a-3c0f-4962-a0ac-4cfa5a4267f4
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Short Commitment' =
+			
+			MAX([Ask Final] - [Commit Final], 0)
+		formatString: 0
+		lineageTag: 8997e361-daa6-44d2-8177-a057c7fb8b7a
+
+	measure 'Total Receipt Correct' =
+			
+			CALCULATE(
+			    SUM(Receipt[Receipt])
+			)
+		lineageTag: 87123ae4-a50c-4b7e-8038-7da2029d37a1
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Receipt %_1' =
+			
+			DIVIDE(
+			    [Total Receipt Correct],
+			    SUM('Schedule & Commit'[Commit])
+			)
+		formatString: 0%;-0%;0%
+		lineageTag: 05c72b9d-0f95-4c45-837c-a9436627717c
+
+	measure '% Commitment' =
+			
+			DIVIDE([Commit Final], [Ask Final] )
+		formatString: 0%;-0%;0%
+		lineageTag: 86c4a71f-2fd9-4e9d-8858-61bd64d0de9a
+
+	measure Schedule =
+			
+			CALCULATE(SUM('Schedule & Commit'[Ask]))
+		formatString: 0
+		lineageTag: aecfb785-dfcc-4ad8-aa18-cfd16f6a1267
+
+	measure Commitment =
+			CALCULATE(
+			    SUM(
+			        'Schedule & Commit'[Commit]
+			    )
+			)
+		lineageTag: e40ea1d7-058a-4b0a-aa4f-2214926aae8a
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure Receipt_new =
+			
+			CALCULATE(
+			    SUM(Receipt[Receipt]),
+			    USERELATIONSHIP(
+			        Receipt[Material_Vendor],
+			        'Schedule & Commit'[Material_Vendor]
+			    )
+			)
+		lineageTag: 0c48a154-10b6-4e99-8a3b-2860c3ce0b2e
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Receipt final' =
+			
+			SWITCH(
+			    SELECTEDVALUE('Toggle'[View]),
+			
+			    // ✅ Quantity
+			    "Quantity",
+			        CALCULATE(
+			            SUM('Receipt'[Receipt]),
+			            TREATAS(
+			                VALUES('Schedule & Commit'[Material_Vendor]),
+			                'Receipt'[Material_Vendor]
+			            )
+			        ),
+			
+			    // ✅ PO Price
+			    "PO Price",
+			        CALCULATE(
+			            SUMX(
+			                'Receipt',
+			                'Receipt'[Receipt] *
+			                CALCULATE(MAX('Po Price'[Net Price ]))
+			            ),
+			            TREATAS(
+			                VALUES('Schedule & Commit'[Material_Vendor]),
+			                'Receipt'[Material_Vendor]
+			            )
+			        )/100000,
+			
+			    // ✅ Aftermarket (FIXED using USERELATIONSHIP)
+			    "Aftermarket",
+			        CALCULATE(
+			            SUMX(
+			                'Receipt',
+			                'Receipt'[Receipt] *
+			                VAR DomesticPrice =
+			                    CALCULATE(
+			                        MAX('Domestic_AM Price'[Unit Price]),
+			                        USERELATIONSHIP(
+			                            'Receipt'[Material No],
+			                            'Domestic_AM Price'[Material Code]
+			                        )
+			                    )
+			                VAR ExportPrice =
+			                    CALCULATE(
+			                        MAX('Exports_AM Price'[Unit Price]),
+			                        USERELATIONSHIP(
+			                            'Receipt'[Material No],
+			                            'Exports_AM Price'[Material Code]
+			                        )
+			                    )
+			                RETURN
+			                    SWITCH(
+			                        TRUE(),
+			                        DomesticPrice = 0, ExportPrice,
+			                        ExportPrice = 0, DomesticPrice,
+			                        (DomesticPrice + ExportPrice) / 2
+			                    )
+			            ),
+			            TREATAS(
+			                VALUES('Schedule & Commit'[Material_Vendor]),
+			                'Receipt'[Material_Vendor]
+			            )
+			        )/100000
+			)
+		formatString: 0
+		lineageTag: 8cca2ea3-8fba-4049-a535-f378e54ae522
+
+	measure 'Receipt as per Commitment final' =
+			
+			SUMX(
+			    SUMMARIZE(
+			        'Schedule & Commit',
+			        'Schedule & Commit'[Material_Vendor]-- adjust if needed
+			    ),
+			    VAR CommitVal =
+			        CALCULATE([Commit_ Final_])
+			    VAR ReceiptVal =
+			        CALCULATE([Receipt final])
+			    RETURN
+			        MIN(CommitVal, ReceiptVal)
+			)
+		formatString: 0
+		lineageTag: f0cd6266-b893-4a59-a0a8-f20d1735d431
+
+	measure '% Received on commitment' =
+			
+			DIVIDE(
+			    [Receipt as per Commitment final],[Commit_ Final_],0)
+		formatString: 0%;-0%;0%
+		lineageTag: f9a88c2e-8b90-4501-8ee8-f1ac0eb6f22a
+
+	measure 'Final Receipt _1' = ```
+			
+			 CALCULATE(
+			            SUM('Receipt'[Receipt]),
+			            TREATAS(
+			                VALUES('Schedule & Commit'[Material_Vendor]),
+			                'Receipt'[Material_Vendor]
+			            )
+			        )
+			```
+		formatString: 0
+		lineageTag: c1d40607-bd01-46f7-b1a5-fbdb09708eda
+
+	measure 'Export ASK Final' = ```
+			
+			SWITCH(
+			    SELECTEDVALUE('Toggle'[View]),
+			
+			    // ✅ Quantity (deduplicated)
+			    "Quantity",
+			        CALCULATE(
+			            SUMX(
+			                VALUES('Schedule & Commit'[Material_Vendor]),
+			                CALCULATE(MAX('Schedule & Commit'[Exports ASK]))
+			            ),
+			            REMOVEFILTERS('Schedule & Commit'[Week])
+			        ),
+			
+			    // ✅ PO Price (FIXED)
+			    "PO Price",
+			         CALCULATE(
+			            SUMX(
+			                'Schedule & Commit',
+			                'Schedule & Commit'[Exports ASK] *
+			                CALCULATE(MAX('Po Price'[Net Price ]))
+			            )/400000,
+			            REMOVEFILTERS('Schedule & Commit'[Week])
+			        ),
+			
+			    // ✅ Aftermarket
+			    "Aftermarket",
+			 CALCULATE( SUMX( 'Schedule & Commit', 'Schedule & Commit'[Exports ASK] * VAR DomesticPrice = CALCULATE(MAX('Domestic_AM Price'[Unit Price])) VAR ExportPrice = CALCULATE(MAX('Exports_AM Price'[Unit Price])) RETURN SWITCH( TRUE(), DomesticPrice = 0, ExportPrice, ExportPrice = 0, DomesticPrice, (DomesticPrice + ExportPrice) / 2 ) )/400000, REMOVEFILTERS('Schedule & Commit'[Week]) ) 
+			)
+			```
+		lineageTag: 35ffe39b-875b-4b27-9980-ac1788ee4bf6
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Short Receipt' =
+			
+			MAX([Commit_ Final_] - [Receipt as per Commitment final], 0)
+		formatString: 0
+		lineageTag: 2d4c6006-0433-4be6-b6cf-410982069f42
+
+	measure '% Received on commitment_SKU' =
+			
+			DIVIDE(
+			    [Receipt as per Commitment final],
+			    CALCULATE(
+			        [Commit_ Final_],
+			        REMOVEFILTERS('Schedule & Commit'[Week])
+			    ),
+			    0
+			)
+		lineageTag: f682c741-f979-4842-bacf-1ee519becff8
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Receipt final for receipt' =
+			
+			SWITCH(
+			    SELECTEDVALUE('Toggle'[View], "PO Price"),  -- ✅ default here
+			
+			    "Quantity",
+			        CALCULATE(
+			            SUM('Receipt'[Receipt]),
+			            TREATAS(
+			                VALUES('Schedule & Commit'[Material_Vendor]),
+			                'Receipt'[Material_Vendor]
+			            )
+			        ),
+			
+			    "PO Price",
+			        CALCULATE(
+			            SUMX(
+			                'Receipt',
+			                'Receipt'[Receipt] *
+			                CALCULATE(MAX('Po Price'[Net Price ]))
+			            ),
+			            TREATAS(
+			                VALUES('Schedule & Commit'[Material_Vendor]),
+			                'Receipt'[Material_Vendor]
+			            )
+			        ) / 100000,
+			
+			    "Aftermarket",
+			        CALCULATE(
+			            SUMX(
+			                'Receipt',
+			                'Receipt'[Receipt] *
+			                VAR DomesticPrice =
+			                    CALCULATE(
+			                        MAX('Domestic_AM Price'[Unit Price]),
+			                        USERELATIONSHIP(
+			                            'Receipt'[Material No],
+			                            'Domestic_AM Price'[Material Code]
+			                        )
+			                    )
+			                VAR ExportPrice =
+			                    CALCULATE(
+			                        MAX('Exports_AM Price'[Unit Price]),
+			                        USERELATIONSHIP(
+			                            'Receipt'[Material No],
+			                            'Exports_AM Price'[Material Code]
+			                        )
+			                    )
+			                RETURN
+			                    SWITCH(
+			                        TRUE(),
+			                        DomesticPrice = 0, ExportPrice,
+			                        ExportPrice = 0, DomesticPrice,
+			                        (DomesticPrice + ExportPrice) / 2
+			                    )
+			            ),
+			            TREATAS(
+			                VALUES('Schedule & Commit'[Material_Vendor]),
+			                'Receipt'[Material_Vendor]
+			            )
+			        ) / 100000
+			)
+		lineageTag: cd1e875a-cea1-4649-be53-958399144f58
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Receipt as per Commitment final for receipt' =
+			
+			SUMX(
+			    SUMMARIZE(
+			        'Schedule & Commit',
+			        'Schedule & Commit'[Material_Vendor]
+			    ),
+			    VAR CommitVal = [Commit_ Final_]
+			    VAR ReceiptVal = [Receipt final]
+			    RETURN
+			        MIN(CommitVal, ReceiptVal)
+			)
+		lineageTag: 1feb1d51-7a6a-4250-8999-b721d5f45be1
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure '% Received on commitment for receipt' =
+			
+			DIVIDE(
+			    SUMX(
+			        VALUES('Schedule & Commit'[Material_Vendor]),
+			        VAR CommitVal =
+			            CALCULATE(
+			                [Commit_ Final_],
+			                REMOVEFILTERS('Toggle'),
+			                'Toggle'[View] = "PO Price"
+			            )
+			        VAR ReceiptVal =
+			            CALCULATE(
+			                [Receipt final],
+			                REMOVEFILTERS('Toggle'),
+			                'Toggle'[View] = "PO Price"
+			            )
+			        RETURN
+			            MIN(CommitVal, ReceiptVal)
+			    ),
+			    CALCULATE(
+			        [Commit_ Final_],
+			        REMOVEFILTERS('Toggle'),
+			        'Toggle'[View] = "PO Price"
+			    ),
+			    0
+			)
+		formatString: 0%;-0%;0%
+		lineageTag: 12461fa0-8c89-4ac1-9bee-99d79109a333
+
+	column Name
+		dataType: string
+		lineageTag: f2955c81-f9ef-4d4d-84d7-5cc334d06b9e
+		summarizeBy: none
+		sourceColumn: Name
+
+		annotation SummarizationSetBy = Automatic
+
+	column Vendor
+		dataType: string
+		lineageTag: 02837f1e-84fd-46df-8bb3-5567bf7bd13c
+		summarizeBy: none
+		sourceColumn: Vendor
+
+		annotation SummarizationSetBy = Automatic
+
+	column Plant
+		dataType: string
+		lineageTag: e9d25459-9010-4b36-afbd-395c95cc4ccc
+		summarizeBy: none
+		sourceColumn: Plant
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Plant Head'
+		dataType: string
+		lineageTag: 233b0adc-5089-45a4-87ae-a1eb84387652
+		summarizeBy: none
+		sourceColumn: Plant Head
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'CBU Head'
+		dataType: string
+		lineageTag: afa04ee5-64a6-4d72-b8e4-ff6518108b0e
+		summarizeBy: none
+		sourceColumn: CBU Head
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Trimmed Code'
+		dataType: string
+		lineageTag: 9a385950-2e87-4f7f-8247-9087404d78d8
+		summarizeBy: none
+		sourceColumn: Trimmed Code
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Material Code'
+		dataType: string
+		lineageTag: d16a12b0-c736-476f-9936-99cb9abc46f9
+		summarizeBy: none
+		sourceColumn: Material Code
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Material Desciption'
+		dataType: string
+		lineageTag: ae4d1668-068d-426b-b455-bdd39d9d26f2
+		summarizeBy: none
+		sourceColumn: Material Desciption
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Domestic ASK'
+		dataType: double
+		lineageTag: f5a415c2-a500-41d9-82ea-e59046c736ab
+		summarizeBy: sum
+		sourceColumn: Domestic ASK
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column 'Exports ASK'
+		dataType: double
+		lineageTag: cad978ce-e477-438e-93c6-24b9587d27ac
+		summarizeBy: sum
+		sourceColumn: Exports ASK
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column Week
+		dataType: string
+		lineageTag: 33021230-2fa8-4f10-b231-cd3d09f16649
+		summarizeBy: none
+		sourceColumn: Week
+
+		annotation SummarizationSetBy = Automatic
+
+	column Ask
+		dataType: double
+		lineageTag: 81517051-a1a8-4332-8186-641e6b41c56c
+		summarizeBy: sum
+		sourceColumn: Ask
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column Commit
+		dataType: double
+		lineageTag: 41a792d7-7342-4fa8-a233-4ca48b10f493
+		summarizeBy: sum
+		sourceColumn: Commit
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column Month
+		dataType: string
+		lineageTag: c047b28d-cf47-43eb-9962-b3cf1d59a166
+		summarizeBy: none
+		sourceColumn: Month
+
+		annotation SummarizationSetBy = Automatic
+
+	column Material_Vendor
+		dataType: string
+		lineageTag: 44a40b2b-28fa-4e9a-ba07-af3f6a066a2a
+		summarizeBy: none
+		sourceColumn: Material_Vendor
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Critical SKU'
+		dataType: string
+		lineageTag: c2aa29fd-6527-4a37-b26b-6fe21213d06b
+		summarizeBy: none
+		sourceColumn: Critical SKU
+		sortByColumn: 'Critical SKU Sort'
+
+		changedProperty = SortByColumn
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Critical SKU Sort'
+		dataType: string
+		lineageTag: 5d696393-2367-4389-83b5-125c2e7f1b22
+		summarizeBy: none
+		sourceColumn: Critical SKU Sort
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'Schedule & Commit' = m
+		mode: import
+		source = ```
+				let
+				    Source = Folder.Files("C:\Users\Keshav Dhameja\OneDrive - McKinsey & Company\Desktop\Files\2026\Radhika\Schedule & Commit"),
+				    #"Invoked Custom Function" = Table.AddColumn(Source, "Sheet1 (3)", each #"Sheet1 (3)"([Content])),
+				    #"Expanded Sheet1 (3)" = Table.ExpandTableColumn(#"Invoked Custom Function", "Sheet1 (3)", {"Plant", "Plant_1", "Plant Head", "CBU Head", "Trimmed Code", "Material Code", "Material Desciption", "Domestic ASK", "Exports ASK", "Type", "Week", "Value"}, {"Sheet1 (3).Plant", "Sheet1 (3).Plant_1", "Sheet1 (3).Plant Head", "Sheet1 (3).CBU Head", "Sheet1 (3).Trimmed Code", "Sheet1 (3).Material Code", "Sheet1 (3).Material Desciption", "Sheet1 (3).Domestic ASK", "Sheet1 (3).Exports ASK", "Sheet1 (3).Type", "Sheet1 (3).Week", "Sheet1 (3).Value"}),
+				    #"Removed Columns" = Table.RemoveColumns(#"Expanded Sheet1 (3)",{"Content", "Extension", "Date accessed", "Date modified", "Date created", "Attributes", "Folder Path"}),
+				    #"Pivoted Column" = Table.Pivot(#"Removed Columns", List.Distinct(#"Removed Columns"[#"Sheet1 (3).Type"]), "Sheet1 (3).Type", "Sheet1 (3).Value", List.Sum),
+				    #"Renamed Columns" = Table.RenameColumns(#"Pivoted Column",{{"Sheet1 (3).Plant", "Plant"}, {"Sheet1 (3).Plant_1", "Plant_1"}, {"Sheet1 (3).Plant Head", "Plant Head"}, {"Sheet1 (3).CBU Head", "CBU Head"}, {"Sheet1 (3).Trimmed Code", "Trimmed Code"}, {"Sheet1 (3).Material Code", "Material Code"}, {"Sheet1 (3).Material Desciption", "Material Desciption"}, {"Sheet1 (3).Domestic ASK", "Domestic ASK"}, {"Sheet1 (3).Exports ASK", "Exports ASK"}, {"Sheet1 (3).Week", "Week"}}),
+				    #"Added Custom" = Table.AddColumn(#"Renamed Columns", "Month", each Text.Middle([Name], Text.PositionOf([Name], "_")+1, 3)),
+				    #"Changed Type" = Table.TransformColumnTypes(#"Added Custom",{{"Ask", type number}, {"Commit", type number}, {"Exports ASK", type number}, {"Domestic ASK", type number}}),
+				    #"Renamed Columns1" = Table.RenameColumns(#"Changed Type",{{"Plant", "Vendor"}, {"Plant_1", "Plant"}}),
+				    #"Added Custom1" = Table.AddColumn(
+				    #"Renamed Columns1",
+				    "Material_Vendor",
+				    each Text.From([Material Code]) & "_" & Text.From([Vendor])
+				),
+				    #"Added Custom2" = Table.AddColumn(#"Added Custom1", "Critical SKU", each let desc = try Text.Upper([#"Material Desciption"]) otherwise "" in if Text.Contains(desc, "TMC ASSY") then "TMC ASSY" else if Text.Contains(desc, "WH CYL") then "WH CYL ASSY" else if Text.Contains(desc, "BR PANEL") then "BR PANEL ASSY" else if Text.Contains(desc, "STRUT ASSY") then "STRUT ASSY" else if Text.Contains(desc, "S/A HND ACT") then "S/A HND ACT" else "Other" ),
+				    #"Added Custom3" = Table.AddColumn(#"Added Custom2", "Critical SKU Sort", each 
+				    if [Critical SKU] = "TMC ASSY" then 1
+				    else if [Critical SKU] = "WH CYL ASSY" then 2
+				    else if [Critical SKU] = "BR PANEL ASSY" then 3
+				    else if [Critical SKU] = "STRUT ASSY" then 4
+				    else if [Critical SKU] = "S/A HND ACT" then 5
+				    else 99   // 🔥 Other goes last
+				)
+				in
+				    #"Added Custom3"
+				```
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+

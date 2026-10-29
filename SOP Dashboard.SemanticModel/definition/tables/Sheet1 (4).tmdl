@@ -1,0 +1,44 @@
+table 'Sheet1 (4)'
+	isHidden
+	lineageTag: a23d6b26-307d-478e-ba76-8a41e6c7c725
+
+	column Plant
+		dataType: string
+		isHidden
+		lineageTag: 85b68fc7-0d1c-46e2-901a-3d7ddf17ff31
+		summarizeBy: none
+		sourceColumn: Plant
+
+		changedProperty = IsHidden
+
+		annotation SummarizationSetBy = Automatic
+
+	column Plant_1
+		dataType: string
+		isHidden
+		lineageTag: ef3ea79d-5917-45c5-8e2b-ef2a675bbecb
+		summarizeBy: none
+		sourceColumn: Plant_1
+
+		changedProperty = IsHidden
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'Sheet1 (4)' = m
+		mode: import
+		source =
+				let
+				    Source = Excel.Workbook(File.Contents("C:\Users\Keshav Dhameja\OneDrive - McKinsey & Company\Desktop\Files\2026\Radhika\Mapping.xlsx"), null, true),
+				    Sheet1_Sheet = Source{[Item="Sheet1",Kind="Sheet"]}[Data],
+				    #"Promoted Headers" = Table.PromoteHeaders(Sheet1_Sheet, [PromoteAllScalars=true]),
+				    #"Changed Type" = Table.TransformColumnTypes(#"Promoted Headers",{{"Plant", type text}, {"Plant_1", type text}}),
+				    #"Removed Bottom Rows" = Table.RemoveLastN(#"Changed Type",1)
+				in
+				    #"Removed Bottom Rows"
+
+	changedProperty = IsHidden
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+
